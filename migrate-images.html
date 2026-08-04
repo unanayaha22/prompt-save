@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>Prompt Save - Image Migration (1회용)</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 20px; }
+  p.note { color: #666; font-size: 13px; line-height: 1.5; }
+  input { width: 100%; padding: 8px; margin: 6px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; }
+  button { padding: 10px 16px; border-radius: 6px; border: none; background: #111; color: #fff; font-weight: bold; cursor: pointer; margin-top: 10px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #log { margin-top: 20px; background: #f7f7f7; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; }
+  .ok { color: #0a7a2f; }
+  .err { color: #c0304a; }
+</style>
+</head>
+<body>
+
+<h1>🖼️ 기존 이미지 → Supabase Storage 마이그레이션</h1>
+<p class="note">
+  DB에 base64로 저장된 기존 프롬프트 이미지들을 Supabase Storage로 옮기고,
+  각 행의 image 값을 Storage URL로 바꿔줍니다. <b>1회만 실행하면 됩니다.</b><br/>
+  실행 전에 Storage 버킷(<code>prompt-images</code>)과 정책을 먼저 SQL Editor에서 만들어두셔야 해요.<br/>
+  작업이 끝나면 이 페이지는 배포에서 지워도 됩니다 (관리자 권한으로 업로드가 가능한 도구라 계속 남겨두지 않는 게 안전해요).
+</p>
+
+<label>관리자 이메일</label>
+<input id="email" type="email" placeholder="admin@example.com" />
+<label>관리자 비밀번호</label>
+<input id="password" type="password" placeholder="비밀번호" />
+
+<button id="startBtn">마이그레이션 시작</button>
+
+<div id="log"></div>
+
+<script>
+const SUPABASE_URL = "https://cnxskhplcseksjnxrnec.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNueHNraHBsY3Nla3NqbnhybmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3MDM0NTQsImV4cCI6MjEwMTI3OTQ1NH0.JF30_MQb7-mOMJQt9hj2qNpwuHTmTFtPjNqZQyo1UXI";
+const STORAGE_BUCKET = "prompt-images";
+
+const logEl = document.getElementById("log");
+function log(msg, cls) {
+  const line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function signIn(email, password) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error("로그인 실패 (이메일/비밀번호 확인)");
+  const data = await res.json();
+  return data.access_token;
+}
+
+async function fetchAllPrompts(token) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/prompts?select=id,image&order=id.asc`, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("프롬프트 목록을 불러오지 못했어요");
+  return res.json();
+}
+
+function extFromMime(mime) {
+  if (!mime) return ".jpg";
+  if (mime.includes("png")) return ".png";
+  if (mime.includes("webp")) return ".webp";
+  if (mime.includes("gif")) return ".gif";
+  return ".jpg";
+}
+
+async function uploadBlob(blob, token) {
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}${extFromMime(blob.type)}`;
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": blob.type || "application/octet-stream",
+    },
+    body: blob,
+  });
+  if (!res.ok) throw new Error(`업로드 실패 (${res.status})`);
+  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
+}
+
+async function updatePromptImage(id, url, token) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/prompts?id=eq.${id}`, {
+    method: "PATCH",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({ image: url }),
+  });
+  if (!res.ok) throw new Error(`DB 업데이트 실패 (${res.status})`);
+}
+
+document.getElementById("startBtn").addEventListener("click", async () => {
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const btn = document.getElementById("startBtn");
+  logEl.innerHTML = "";
+
+  if (!email || !password) {
+    log("이메일과 비밀번호를 입력해주세요.", "err");
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    log("로그인 중...");
+    const token = await signIn(email, password);
+    log("로그인 성공 ✓", "ok");
+
+    log("프롬프트 목록 불러오는 중...");
+    const rows = await fetchAllPrompts(token);
+    const targets = rows.filter((r) => typeof r.image === "string" && r.image.startsWith("data:"));
+    log(`총 ${rows.length}개 중 base64 이미지 ${targets.length}개 발견`);
+
+    let success = 0;
+    let fail = 0;
+
+    for (const row of targets) {
+      try {
+        const blob = await (await fetch(row.image)).blob();
+        const url = await uploadBlob(blob, token);
+        await updatePromptImage(row.id, url, token);
+        success++;
+        log(`[id ${row.id}] 완료 ✓`, "ok");
+      } catch (e) {
+        fail++;
+        log(`[id ${row.id}] 실패: ${e.message}`, "err");
+      }
+      // small delay so we don't hammer the API
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    log(`\n마이그레이션 종료: 성공 ${success}개, 실패 ${fail}개`, fail > 0 ? "err" : "ok");
+    if (fail === 0) {
+      log("SQL Editor에서 이걸로 용량 확인해보세요:\nselect pg_size_pretty(pg_total_relation_size('prompts'));");
+      log("그 다음 공간 회수를 위해:\nvacuum full prompts;");
+    }
+  } catch (e) {
+    log(`오류: ${e.message}`, "err");
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>
