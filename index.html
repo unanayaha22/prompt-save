@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="ko" translate="no">
+<head>
+<meta charset="UTF-8" />
+<meta name="google" content="notranslate" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prompt Save ♡</title>
+<link
+  rel="icon"
+  href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍮</text></svg>"
+/>
+
+<!-- Tailwind CSS (CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- React + ReactDOM (stable UMD builds — no importmap / ESM needed) -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+<!-- Babel standalone, so we can write JSX directly in the browser -->
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+<style>
+  body {
+    margin: 0;
+    background-color: #ffe1ec;
+    background-image: radial-gradient(circle, rgba(0,0,0,0.06) 1.4px, transparent 1.4px);
+    background-size: 18px 18px;
+  }
+</style>
+</head>
+<body>
+
+<div id="root" class="notranslate" translate="no"></div>
+<div id="fallback" style="display:none;"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect } = React;
+
+/* ---------------------------------------------------------------
+   Self-contained icon set (plain inline SVG, no external package).
+   This avoids relying on any third-party icon CDN/import that can
+   fail to resolve on some hosts and blank out the whole page.
+--------------------------------------------------------------- */
+const Icon = ({ children, viewBox = "0 0 24 24", className = "w-4 h-4", fill = "none" }) => (
+  <svg
+    viewBox={viewBox}
+    className={className}
+    fill={fill}
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {children}
+  </svg>
+);
+
+const Heart = ({ className }) => (
+  <Icon className={className}>
+    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+  </Icon>
+);
+const Search = ({ className }) => (
+  <Icon className={className}>
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </Icon>
+);
+const Copy = ({ className }) => (
+  <Icon className={className}>
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </Icon>
+);
+const Check = ({ className }) => (
+  <Icon className={className}>
+    <polyline points="20 6 9 17 4 12" />
+  </Icon>
+);
+const Plus = ({ className }) => (
+  <Icon className={className}>
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </Icon>
+);
+const ChevronLeft = ({ className }) => (
+  <Icon className={className}>
+    <polyline points="15 18 9 12 15 6" />
+  </Icon>
+);
+const ChevronRight = ({ className }) => (
+  <Icon className={className}>
+    <polyline points="9 18 15 12 9 6" />
+  </Icon>
+);
+const X = ({ className }) => (
+  <Icon className={className}>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </Icon>
+);
+const Sparkles = ({ className }) => (
+  <Icon className={className}>
+    <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z" />
+  </Icon>
+);
+const Upload = ({ className }) => (
+  <Icon className={className}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </Icon>
+);
+const ImageIcon = ({ className }) => (
+  <Icon className={className}>
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <polyline points="21 15 16 10 5 21" />
+  </Icon>
+);
+const Trash2 = ({ className }) => (
+  <Icon className={className}>
+    <path d="M3 6h18" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </Icon>
+);
+const Pencil = ({ className }) => (
+  <Icon className={className}>
+    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    <path d="m15 5 4 4" />
+  </Icon>
+);
+const LogIn = ({ className }) => (
+  <Icon className={className}>
+    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+    <polyline points="10 17 15 12 10 7" />
+    <line x1="15" y1="12" x2="3" y2="12" />
+  </Icon>
+);
+const LogOut = ({ className }) => (
+  <Icon className={className}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </Icon>
+);
+const Lock = ({ className }) => (
+  <Icon className={className}>
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </Icon>
+);
+const AlertCircle = ({ className }) => (
+  <Icon className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </Icon>
+);
+
+/* ---------------------------------------------------------------
+   App data & constants
+--------------------------------------------------------------- */
+const ADMIN_PASSWORD = "narunari@4957!";
+
+/* ---------------------------------------------------------------
+   Shared backend (Supabase) so added prompts are visible to every
+   visitor on every device, not just the browser that added them.
+
+   HOW TO ENABLE:
+   1) Create a free project at https://supabase.com
+   2) Run the SQL you were given to create the "prompts" table
+   3) Paste your Project URL + anon public key below
+   Until both are filled in, the app automatically falls back to
+   saving in this browser's localStorage only (old behavior).
+--------------------------------------------------------------- */
+const SUPABASE_URL = "https://cnxskhplcseksjnxrnec.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNueHNraHBsY3Nla3NqbnhybmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3MDM0NTQsImV4cCI6MjEwMTI3OTQ1NH0.JF30_MQb7-mOMJQt9hj2qNpwuHTmTFtPjNqZQyo1UXI";
+const SUPABASE_CONFIGURED =
+  !SUPABASE_URL.includes("YOUR_SUPABASE_URL") &&
+  !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY");
+
+const supabaseHeaders = {
+  apikey: SUPABASE_ANON_KEY,
+  Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+};
+
+function supabaseAuthedHeaders(token) {
+  return {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${token || SUPABASE_ANON_KEY}`,
+  };
+}
+
+async function supabaseSignIn(email, password) {
+  const res = await fetch(
+    `${SUPABASE_URL}/auth/v1/token?grant_type=password`,
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    }
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(
+      data.error_description || data.msg || "로그인에 실패했어요."
+    );
+  }
+  return data; // { access_token, refresh_token, user, ... }
+}
+
+async function supabaseSignOut(token) {
+  try {
+    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: "POST",
+      headers: supabaseAuthedHeaders(token),
+    });
+  } catch (e) {
+    // best-effort only
+  }
+}
+
+async function supabaseGetUser(token) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: supabaseAuthedHeaders(token),
+  });
+  if (!res.ok) throw new Error("invalid session");
+  return res.json();
+}
+
+async function supabaseFetchPrompts() {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/prompts?select=*&order=id.asc`,
+    { headers: supabaseHeaders }
+  );
+  if (!res.ok) throw new Error("Failed to fetch prompts");
+  return res.json();
+}
+
+async function supabaseInsertPrompt(promptData, token) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/prompts`, {
+    method: "POST",
+    headers: {
+      ...supabaseAuthedHeaders(token),
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify([promptData]),
+  });
+  if (!res.ok) throw new Error("Failed to insert prompt");
+  const data = await res.json();
+  return data[0];
+}
+
+async function supabaseUpdatePrompt(id, promptData, token) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/prompts?id=eq.${id}`, {
+    method: "PATCH",
+    headers: {
+      ...supabaseAuthedHeaders(token),
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify(promptData),
+  });
+  if (!res.ok) throw new Error("Failed to update prompt");
+  const data = await res.json();
+  return data[0];
+}
+
+const STORAGE_BUCKET = "prompt-images";
+
+async function supabaseUploadImage(file, token) {
+  const extMatch = /\.[a-zA-Z0-9]+$/.exec(file.name || "");
+  const ext = extMatch ? extMatch[0].toLowerCase() : ".jpg";
+  const path = `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}${ext}`;
+  const res = await fetch(
+    `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`,
+    {
+      method: "POST",
+      headers: {
+        ...supabaseAuthedHeaders(token),
+        "Content-Type": file.type || "application/octet-stream",
+      },
+      body: file,
+    }
+  );
+  if (!res.ok) throw new Error("Failed to upload image");
+  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
+}
+
+const STORAGE_PUBLIC_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/`;
+
+function storagePathFromUrl(url) {
+  if (typeof url === "string" && url.startsWith(STORAGE_PUBLIC_PREFIX)) {
+    return url.slice(STORAGE_PUBLIC_PREFIX.length);
+  }
+  return null;
+}
+
+async function supabaseDeleteStorageImage(url, token) {
+  const path = storagePathFromUrl(url);
+  if (!path) return; // not a Storage-hosted image (e.g. default placeholder) — nothing to clean up
+  try {
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`, {
+      method: "DELETE",
+      headers: supabaseAuthedHeaders(token),
+    });
+  } catch (e) {
+    // best-effort cleanup — don't block the main action if this fails
+    console.error("Failed to delete old storage image:", e);
+  }
+}
+
+async function supabaseDeletePrompt(id, token) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/prompts?id=eq.${id}`, {
+    method: "DELETE",
+    headers: supabaseAuthedHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to delete prompt");
+}
+const CATEGORIES = ["1인", "2인", "ETC", "clothes(女)", "clothes(男)"];
+
+let fieldIdCounter = 100;
+const makeFieldId = () => {
+  fieldIdCounter += 1;
+  return fieldIdCounter;
+};
+
+const INITIAL_PROMPTS = [];
+
+const emptyField = () => ({ id: makeFieldId(), label: "", text: "" });
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen w-full flex items-center justify-center p-6">
+          <div className="max-w-md bg-white border-2 border-black rounded-2xl shadow-[6px_6px_0px_#000] p-6 text-center">
+            <p className="text-3xl mb-2">⚠️</p>
+            <h2 className="font-extrabold text-black mb-2">
+              화면을 불러오는 중 오류가 발생했어요
+            </h2>
+            <p className="text-xs text-gray-500 mb-3">
+              아래 오류 메시지를 캡처해서 알려주시면 바로 고쳐드릴게요.
+            </p>
+            <pre className="text-left text-[11px] bg-[#fdfaf5] border-2 border-black rounded-lg p-3 overflow-auto max-h-40 whitespace-pre-wrap">
+              {String(this.state.error && this.state.error.message ? this.state.error.message : this.state.error)}
+            </pre>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function PromptSave() {
+  const [prompts, setPrompts] = useState(() => {
+    if (SUPABASE_CONFIGURED) return []; // will be filled by the fetch below
+    try {
+      const saved = window.localStorage.getItem("promptSaveData");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error("Failed to load saved prompts:", e);
+    }
+    return INITIAL_PROMPTS;
+  });
+  const [promptsLoading, setPromptsLoading] = useState(SUPABASE_CONFIGURED);
+  const [promptsError, setPromptsError] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminAccessToken, setAdminAccessToken] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginSubmitting, setLoginSubmitting] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastAddedId, setLastAddedId] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [copiedKey, setCopiedKey] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editingOriginalImage, setEditingOriginalImage] = useState(null);
+  const [newImage, setNewImage] = useState("");
+  const [newImageFile, setNewImageFile] = useState(null);
+  const [newImageName, setNewImageName] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
+  const [newCategory, setNewCategory] = useState(CATEGORIES[0]);
+  const [newMainText, setNewMainText] = useState("");
+  const [extraFields, setExtraFields] = useState([]);
+  const cardRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    window.__appMounted = true;
+  }, []);
+
+  useEffect(() => {
+    if (!SUPABASE_CONFIGURED) return;
+    const savedToken = window.localStorage.getItem("promptSaveAdminToken");
+    if (!savedToken) return;
+    supabaseGetUser(savedToken)
+      .then(() => {
+        setAdminAccessToken(savedToken);
+        setIsAdmin(true);
+      })
+      .catch(() => {
+        window.localStorage.removeItem("promptSaveAdminToken");
+      });
+  }, []);
+
+  useEffect(() => {
+    if (SUPABASE_CONFIGURED) return; // shared backend is the source of truth
+    try {
+      window.localStorage.setItem("promptSaveData", JSON.stringify(prompts));
+    } catch (e) {
+      console.error("Failed to save prompts:", e);
+    }
+  }, [prompts]);
+
+  useEffect(() => {
+    if (!SUPABASE_CONFIGURED) return;
+    setPromptsLoading(true);
+    supabaseFetchPrompts()
+      .then((rows) => {
+        setPrompts(
+          rows.map((row) => ({
+            id: row.id,
+            category: row.category,
+            image: row.image,
+            fields: row.fields || [],
+          }))
+        );
+        setPromptsError("");
+      })
+      .catch(() => {
+        setPromptsError(
+          "프롬프트를 불러오지 못했어요. 잠시 후 새로고침 해주세요."
+        );
+      })
+      .finally(() => setPromptsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (lastAddedId == null) return;
+    const el = document.getElementById(`prompt-card-${lastAddedId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      setLastAddedId(null);
+    }
+  }, [lastAddedId, prompts]);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setNewImageName(file.name);
+    setNewImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setNewImage(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const filtered = prompts.filter((p) => {
+    const matchesSearch =
+      search.trim() === "" ||
+      p.fields.some((f) =>
+        f.text.toLowerCase().includes(search.toLowerCase())
+      ) ||
+      p.category.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = p.category === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  // Group cards into pages of 100. Cards #1-100 stack together on page 1
+  // (scroll through them), and every additional 100 cards roll onto a new page.
+  const PAGE_SIZE = 100;
+  const totalPages =
+    filtered.length === 0 ? 1 : Math.ceil(filtered.length / PAGE_SIZE);
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const pageStart = (safeCurrentPage - 1) * PAGE_SIZE;
+  const pageItems = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+  const goPrevPage = () => {
+    setCurrentPage((p) => Math.max(1, p - 1));
+  };
+  const goNextPage = () => {
+    setCurrentPage((p) => Math.min(totalPages, p + 1));
+  };
+
+  const handleCopy = async (text, key) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1500);
+  };
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(""), 2200);
+  };
+
+  const openLoginModal = () => {
+    setEmailInput("");
+    setPasswordInput("");
+    setLoginError("");
+    setShowLoginModal(true);
+  };
+
+  const handleLoginSubmit = async () => {
+    if (!SUPABASE_CONFIGURED) {
+      // Legacy fallback: simple local password check
+      if (passwordInput === ADMIN_PASSWORD) {
+        setIsAdmin(true);
+        setShowLoginModal(false);
+        setPasswordInput("");
+        setLoginError("");
+        showToast("Successfully logged in as Admin! ✨");
+      } else {
+        setLoginError("Incorrect password. Please try again.");
+      }
+      return;
+    }
+
+    if (!emailInput.trim() || !passwordInput) {
+      setLoginError("이메일과 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    setLoginSubmitting(true);
+    try {
+      const data = await supabaseSignIn(emailInput.trim(), passwordInput);
+      setAdminAccessToken(data.access_token);
+      window.localStorage.setItem("promptSaveAdminToken", data.access_token);
+      setIsAdmin(true);
+      setShowLoginModal(false);
+      setEmailInput("");
+      setPasswordInput("");
+      setLoginError("");
+      showToast("Successfully logged in as Admin! ✨");
+    } catch (e) {
+      setLoginError(e.message || "로그인에 실패했어요. 다시 시도해주세요.");
+    } finally {
+      setLoginSubmitting(false);
+    }
+  };
+
+  const handleLogout = () => {
+    if (SUPABASE_CONFIGURED && adminAccessToken) {
+      supabaseSignOut(adminAccessToken);
+    }
+    window.localStorage.removeItem("promptSaveAdminToken");
+    setAdminAccessToken(null);
+    setIsAdmin(false);
+    showToast("Logged out ♡");
+  };
+
+  const handleAddExtraField = () => {
+    setExtraFields((prev) => [...prev, emptyField()]);
+  };
+
+  const handleRemoveExtraField = (id) => {
+    setExtraFields((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const handleExtraFieldChange = (id, key, value) => {
+    setExtraFields((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, [key]: value } : f))
+    );
+  };
+
+  const DEFAULT_IMAGE =
+    "https://images.unsplash.com/photo-1520975954732-35dd22299614?w=600&q=80";
+
+  const openAddModal = () => {
+    setEditingId(null);
+    setEditingOriginalImage(null);
+    setNewImage("");
+    setNewImageFile(null);
+    setNewImageName("");
+    setNewMainText("");
+    setExtraFields([]);
+    setNewCategory(activeCategory || CATEGORIES[0]);
+    setShowModal(true);
+  };
+
+  const openEditModal = (item) => {
+    setEditingId(item.id);
+    setEditingOriginalImage(item.image || null);
+    setNewCategory(item.category);
+    const [mainField, ...rest] = item.fields || [];
+    setNewMainText(mainField ? mainField.text : "");
+    setExtraFields(
+      rest.map((f) => ({ id: f.id, label: f.label || "", text: f.text }))
+    );
+    setNewImage(item.image || "");
+    setNewImageFile(null);
+    setNewImageName("");
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingId(null);
+    setEditingOriginalImage(null);
+    setNewImage("");
+    setNewImageFile(null);
+    setNewImageName("");
+    setNewMainText("");
+    setExtraFields([]);
+    setNewCategory(CATEGORIES[0]);
+  };
+
+  const handleSavePrompt = async () => {
+    if (!newMainText.trim()) return;
+    const fields = [
+      { id: makeFieldId(), label: "", text: newMainText.trim() },
+      ...extraFields
+        .filter((f) => f.text.trim())
+        .map((f) => ({
+          id: f.id,
+          label: f.label.trim() || "Extra",
+          text: f.text.trim(),
+        })),
+    ];
+
+    const isEditing = editingId != null;
+    let newId = editingId;
+
+    let imageValue = isEditing ? newImage || DEFAULT_IMAGE : DEFAULT_IMAGE;
+    if (newImageFile) {
+      setImageUploading(true);
+      try {
+        imageValue = await supabaseUploadImage(newImageFile, adminAccessToken);
+      } catch (e) {
+        setImageUploading(false);
+        showToast("이미지 업로드에 실패했어요 😢 다시 시도해주세요");
+        return;
+      }
+      setImageUploading(false);
+    } else if (!isEditing) {
+      imageValue = newImage || DEFAULT_IMAGE;
+    }
+
+    if (SUPABASE_CONFIGURED) {
+      try {
+        if (isEditing) {
+          const updated = await supabaseUpdatePrompt(
+            editingId,
+            { category: newCategory, image: imageValue, fields },
+            adminAccessToken
+          );
+          setPrompts((prev) =>
+            prev.map((p) =>
+              p.id === editingId
+                ? {
+                    id: updated.id,
+                    category: updated.category,
+                    image: updated.image,
+                    fields: updated.fields || fields,
+                  }
+                : p
+            )
+          );
+          if (newImageFile && editingOriginalImage) {
+            await supabaseDeleteStorageImage(
+              editingOriginalImage,
+              adminAccessToken
+            );
+          }
+        } else {
+          const inserted = await supabaseInsertPrompt(
+            { category: newCategory, image: imageValue, fields },
+            adminAccessToken
+          );
+          newId = inserted.id;
+          setPrompts((prev) => [
+            ...prev,
+            {
+              id: inserted.id,
+              category: inserted.category,
+              image: inserted.image,
+              fields: inserted.fields || fields,
+            },
+          ]);
+        }
+      } catch (e) {
+        showToast("저장에 실패했어요 😢 다시 시도해주세요");
+        return;
+      }
+    } else if (isEditing) {
+      setPrompts((prev) =>
+        prev.map((p) =>
+          p.id === editingId
+            ? { id: editingId, category: newCategory, image: imageValue, fields }
+            : p
+        )
+      );
+    } else {
+      const nextId =
+        prompts.length > 0 ? Math.max(...prompts.map((p) => p.id)) + 1 : 1;
+      newId = nextId;
+      setPrompts((prev) => [
+        ...prev,
+        { id: nextId, category: newCategory, image: imageValue, fields },
+      ]);
+    }
+
+    const existingInCategory = prompts.filter(
+      (p) => p.category === newCategory
+    ).length;
+    const targetPage = Math.floor(existingInCategory / PAGE_SIZE) + 1;
+
+    setNewImage("");
+    setNewImageFile(null);
+    setNewImageName("");
+    setNewMainText("");
+    setExtraFields([]);
+    setActiveCategory(newCategory);
+    setSearch("");
+    setNewCategory(CATEGORIES[0]);
+    setEditingId(null);
+    setEditingOriginalImage(null);
+    setShowModal(false);
+    if (!isEditing) {
+      setCurrentPage(targetPage);
+    }
+    setLastAddedId(newId);
+  };
+
+  const requestDeletePrompt = (id) => {
+    setDeleteTargetId(id);
+  };
+
+  const cancelDeletePrompt = () => {
+    setDeleteTargetId(null);
+  };
+
+  const confirmDeletePrompt = async () => {
+    if (deleteTargetId == null) return;
+    const targetId = deleteTargetId;
+    const targetPrompt = prompts.find((p) => p.id === targetId);
+    if (SUPABASE_CONFIGURED) {
+      try {
+        await supabaseDeletePrompt(targetId, adminAccessToken);
+      } catch (e) {
+        setDeleteTargetId(null);
+        showToast("삭제에 실패했어요 😢 다시 시도해주세요");
+        return;
+      }
+      if (targetPrompt) {
+        await supabaseDeleteStorageImage(targetPrompt.image, adminAccessToken);
+      }
+    }
+    setPrompts((prev) => prev.filter((p) => p.id !== targetId));
+    setDeleteTargetId(null);
+    showToast("프롬프트 카드를 삭제했어요 🗑️");
+  };
+
+  const badgeNumberFor = (item) => {
+    const sameCategory = prompts
+      .filter((p) => p.category === item.category)
+      .sort((a, b) => a.id - b.id);
+    const rank = sameCategory.findIndex((p) => p.id === item.id) + 1;
+    return String(rank > 0 ? rank : 1).padStart(3, "0");
+  };
+
+  return (
+    <div className="min-h-screen w-full relative">
+      <div className="max-w-2xl mx-auto px-5 pt-8 pb-28 relative">
+        {/* Admin login/logout toggle */}
+        <div className="flex justify-end mb-8">
+          <button
+            onClick={isAdmin ? handleLogout : openLoginModal}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-black text-xs font-bold shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all ${
+              isAdmin ? "bg-black text-white" : "bg-white text-black"
+            }`}
+          >
+            {isAdmin ? (
+              <>
+                <LogOut className="w-3.5 h-3.5" /> Admin Logout
+              </>
+            ) : (
+              <>
+                <LogIn className="w-3.5 h-3.5" /> Admin Login
+              </>
+            )}
+          </button>
+        </div>
+
+        {isAdmin && !SUPABASE_CONFIGURED && (
+          <div className="mb-4 text-center text-[11px] font-bold text-[#c62864] bg-white border-2 border-black rounded-lg px-3 py-2 shadow-[2px_2px_0px_#000]">
+            ⚠️ 공유 저장소(Supabase) 미설정 상태 — 지금은 이 브라우저에만 저장돼요
+          </div>
+        )}
+
+        {/* Taped ribbon banner */}
+        <div className="flex justify-center mb-4">
+          <div
+            className="relative px-8 py-2 border-2 border-black shadow-[3px_3px_0px_#000] rotate-[-2deg]"
+            style={{ backgroundColor: "#f7a8c4" }}
+          >
+            <span
+              className="text-black text-lg tracking-wide"
+              style={{ fontFamily: "'Brush Script MT', cursive" }}
+            >
+              ♡ nai prompt save ♡
+            </span>
+            <div className="absolute -top-2 -left-3 w-8 h-4 bg-white/60 border border-black/20 rotate-[-15deg]" />
+            <div className="absolute -top-2 -right-3 w-8 h-4 bg-white/60 border border-black/20 rotate-[15deg]" />
+          </div>
+        </div>
+
+        {/* Headline */}
+        <div className="flex items-center justify-center gap-3 mb-1">
+          <Heart className="w-8 h-8 text-[#e0648f] fill-[#e0648f]" />
+          <h1 className="text-4xl font-extrabold text-black tracking-tight">
+            Prompt Save
+          </h1>
+          <Heart className="w-8 h-8 text-[#e0648f] fill-[#e0648f]" />
+        </div>
+        <p
+          className="text-center text-gray-500 mb-6"
+          style={{ fontFamily: "'Georgia', serif", fontStyle: "italic" }}
+        >
+          ✦ edit freely · no redistribution please ✦
+        </p>
+
+        {/* Search bar */}
+        <div className="relative mb-4">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-black" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="search prompts by title or tag..."
+            className="w-full pl-12 pr-5 py-3 rounded-full border-2 border-black shadow-[4px_4px_0px_#000] bg-white outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-[3px_3px_0px_#000] transition-all placeholder:text-gray-400 text-sm"
+          />
+        </div>
+
+        {/* Category buttons */}
+        <div className="flex flex-wrap gap-2 justify-center mb-6">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => {
+                setActiveCategory(cat);
+                setCurrentPage(1);
+              }}
+              className={`px-4 py-1.5 rounded-full border-2 border-black text-sm font-bold shadow-[2px_2px_0px_#000] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none ${
+                activeCategory === cat
+                  ? "bg-black text-white"
+                  : "bg-white text-black"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* Pagination controls (page-level only; cards within a page stack + scroll) */}
+        {totalPages > 1 ? (
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <button
+              onClick={goPrevPage}
+              disabled={safeCurrentPage <= 1}
+              className="px-2 py-0.5 rounded-full border-2 border-black bg-white text-[11px] font-bold shadow-[1px_1px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-30"
+            >
+              ◀
+            </button>
+            <span className="text-[11px] font-bold text-black tracking-wide">
+              PAGE {safeCurrentPage} / {totalPages}
+            </span>
+            <button
+              onClick={goNextPage}
+              disabled={safeCurrentPage >= totalPages}
+              className="px-2 py-0.5 rounded-full border-2 border-black bg-white text-[11px] font-bold shadow-[1px_1px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-30"
+            >
+              ▶
+            </button>
+          </div>
+        ) : (
+          <div className="text-center text-[11px] font-bold text-gray-400 mb-4">
+            총 {filtered.length}개
+          </div>
+        )}
+
+        {/* Add new prompt button (admin only) */}
+        {isAdmin && (
+          <div className="flex justify-center mb-8">
+            <button
+              onClick={openAddModal}
+              className="flex items-center gap-2 px-5 py-2 rounded-full border-2 border-black bg-white font-bold text-sm shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+            >
+              <Plus className="w-4 h-4" /> Add New Prompt
+            </button>
+          </div>
+        )}
+
+        {/* Cards: stacked vertically, scroll through up to 100 per page */}
+        {promptsLoading ? (
+          <div className="bg-white border-2 border-black shadow-[6px_6px_0px_#000] rounded-2xl p-10 text-center text-gray-400 font-bold">
+            불러오는 중... ✨
+          </div>
+        ) : promptsError ? (
+          <div className="bg-white border-2 border-black shadow-[6px_6px_0px_#000] rounded-2xl p-10 text-center text-[#c62864] font-bold text-sm">
+            {promptsError}
+          </div>
+        ) : pageItems.length > 0 ? (
+          <div className="space-y-6">
+            {pageItems.map((item) => (
+              <div
+                key={item.id}
+                id={`prompt-card-${item.id}`}
+                className="bg-white border-2 border-black shadow-[6px_6px_0px_#000] rounded-2xl overflow-hidden scroll-mt-6"
+              >
+                {/* Image slot */}
+                <div className="relative w-full h-72 bg-gray-100 border-b-2 border-black overflow-hidden">
+                  <img
+                    src={item.image}
+                    alt="prompt preview"
+                    className="w-full h-full object-cover cursor-zoom-in transition-transform hover:scale-[1.03]"
+                    onClick={() => setPreviewImage(item.image)}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <span className="absolute top-2 left-2 bg-black text-white text-xs font-bold px-2 py-1 rounded-md border-2 border-black">
+                    #{badgeNumberFor(item)}
+                  </span>
+                  <span
+                    className="absolute top-2 right-2 text-black text-xs font-bold px-2 py-1 rounded-md border-2 border-black shadow-[2px_2px_0px_#000]"
+                    style={{ backgroundColor: "#f7a8c4" }}
+                  >
+                    {item.category}
+                  </span>
+                </div>
+
+                {/* Multiple prompt sections */}
+                <div className="p-4 space-y-4">
+                  {item.fields.map((field) => {
+                    const key = `${item.id}-${field.id}`;
+                    return (
+                      <div key={field.id}>
+                        {field.label && field.label.trim() && (
+                          <p className="text-xs font-bold text-[#e0648f] mb-1 tracking-wide">
+                            [ {field.label} Prompt ]
+                          </p>
+                        )}
+                        <div
+                          className="h-28 overflow-y-auto bg-[#fdfaf5] border-2 border-black rounded-lg p-3 text-[13px] leading-relaxed text-black"
+                          style={{ fontFamily: "'Courier New', monospace" }}
+                        >
+                          {field.text}
+                        </div>
+                        <button
+                          onClick={() => handleCopy(field.text, key)}
+                          className="mt-2 w-full flex items-center justify-center gap-2 bg-black text-white font-bold py-2 rounded-lg border-2 border-black shadow-[3px_3px_0px_#e0648f] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all text-sm"
+                        >
+                          {copiedKey === key ? (
+                            <>
+                              <Check className="w-4 h-4" /> COPIED! ✨
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" /> COPY
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {isAdmin && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openEditModal(item)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-white text-black font-bold py-2 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all text-xs"
+                      >
+                        <Pencil className="w-3.5 h-3.5" /> Edit
+                      </button>
+                      <button
+                        onClick={() => requestDeletePrompt(item.id)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-white text-[#c62864] font-bold py-2 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all text-xs"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white border-2 border-black shadow-[6px_6px_0px_#000] rounded-2xl p-10 text-center text-gray-400 font-bold">
+            no prompts found ♡
+          </div>
+        )}
+      </div>
+
+      {/* Floating action button (admin only) */}
+      {isAdmin && (
+        <button
+          onClick={openAddModal}
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full border-2 border-black shadow-[4px_4px_0px_#000] flex items-center justify-center active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+          style={{ backgroundColor: "#e0648f" }}
+          aria-label="Add new prompt"
+        >
+          <Plus className="w-7 h-7 text-white" />
+        </button>
+      )}
+
+      {/* Add prompt modal (admin only) */}
+      {showModal && isAdmin && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white border-2 border-black shadow-[6px_6px_0px_#000] rounded-2xl w-full max-w-sm p-5 relative my-8">
+            <button
+              onClick={closeModal}
+              className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full border-2 border-black bg-white active:translate-x-[1px] active:translate-y-[1px]"
+            >
+              <X className="w-4 h-4 text-black" />
+            </button>
+            <h2 className="text-lg font-extrabold text-black mb-4 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#e0648f]" />{" "}
+              {editingId != null ? "Edit Prompt" : "Add New Prompt"}
+            </h2>
+
+            <label className="block text-xs font-bold text-black mb-1">
+              Upload Image
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                fileInputRef.current && fileInputRef.current.click()
+              }
+              className="w-full mb-3 flex items-center gap-3 px-3 py-2 border-2 border-black rounded-lg bg-white shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all"
+            >
+              {newImage ? (
+                <img
+                  src={newImage}
+                  alt="preview thumbnail"
+                  className="w-10 h-10 object-cover rounded-md border-2 border-black flex-shrink-0"
+                />
+              ) : (
+                <span className="w-10 h-10 flex items-center justify-center rounded-md border-2 border-dashed border-black flex-shrink-0">
+                  <ImageIcon className="w-4 h-4 text-black" />
+                </span>
+              )}
+              <span className="flex items-center gap-1.5 text-sm font-bold text-black truncate">
+                <Upload className="w-4 h-4 flex-shrink-0" />
+                {newImageName ? newImageName : "Choose File"}
+              </span>
+            </button>
+
+            <label className="block text-xs font-bold text-black mb-1">
+              Category
+            </label>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setNewCategory(cat)}
+                  className={`px-3 py-1 rounded-full border-2 border-black text-xs font-bold ${
+                    newCategory === cat
+                      ? "bg-black text-white"
+                      : "bg-white text-black"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <label className="block text-xs font-bold text-black mb-1">
+              Prompt Text
+            </label>
+            <textarea
+              value={newMainText}
+              onChange={(e) => setNewMainText(e.target.value)}
+              placeholder="masterpiece, best quality, ..."
+              rows={4}
+              className="w-full mb-3 px-3 py-2 border-2 border-black rounded-lg text-sm outline-none resize-none"
+              style={{ fontFamily: "'Courier New', monospace" }}
+            />
+
+            {/* Dynamic extra fields */}
+            {extraFields.length > 0 && (
+              <div className="space-y-3 mb-3">
+                {extraFields.map((field) => (
+                  <div
+                    key={field.id}
+                    className="border-2 border-dashed border-black rounded-lg p-3 bg-[#fff7fa]"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="text"
+                        value={field.label}
+                        onChange={(e) =>
+                          handleExtraFieldChange(
+                            field.id,
+                            "label",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Label (e.g. Negative, Outfit)"
+                        className="flex-1 px-2 py-1.5 border-2 border-black rounded-md text-xs font-bold outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveExtraField(field.id)}
+                        className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-md border-2 border-black bg-white active:translate-x-[1px] active:translate-y-[1px]"
+                        aria-label="Remove field"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-black" />
+                      </button>
+                    </div>
+                    <textarea
+                      value={field.text}
+                      onChange={(e) =>
+                        handleExtraFieldChange(
+                          field.id,
+                          "text",
+                          e.target.value
+                        )
+                      }
+                      placeholder="prompt text..."
+                      rows={3}
+                      className="w-full px-2 py-1.5 border-2 border-black rounded-md text-sm outline-none resize-none"
+                      style={{ fontFamily: "'Courier New', monospace" }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleAddExtraField}
+              className="w-full mb-4 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-black bg-white font-bold text-xs shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Extra Prompt
+            </button>
+
+            <button
+              onClick={handleSavePrompt}
+              disabled={imageUploading}
+              className="w-full bg-black text-white font-bold py-2.5 rounded-lg border-2 border-black shadow-[3px_3px_0px_#e0648f] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-50"
+            >
+              {imageUploading
+                ? "이미지 업로드 중..."
+                : editingId != null
+                ? "Update Prompt ♡"
+                : "Save Prompt ♡"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Admin password login modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white border-2 border-black shadow-[6px_6px_0px_#000] rounded-2xl w-full max-w-xs p-5 relative">
+            <button
+              onClick={() => setShowLoginModal(false)}
+              className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full border-2 border-black bg-white active:translate-x-[1px] active:translate-y-[1px]"
+            >
+              <X className="w-4 h-4 text-black" />
+            </button>
+
+            <div className="flex justify-center mb-3">
+              <div
+                className="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_#000]"
+                style={{ backgroundColor: "#f7a8c4" }}
+              >
+                <Lock className="w-5 h-5 text-black" />
+              </div>
+            </div>
+
+            <h2 className="text-lg font-extrabold text-black mb-1 text-center">
+              Admin Login
+            </h2>
+            <p className="text-xs text-gray-500 text-center mb-4">
+              {SUPABASE_CONFIGURED
+                ? "관리자 이메일과 비밀번호를 입력해주세요 ♡"
+                : "enter the admin password to continue ♡"}
+            </p>
+
+            {SUPABASE_CONFIGURED && (
+              <input
+                type="email"
+                value={emailInput}
+                onChange={(e) => {
+                  setEmailInput(e.target.value);
+                  if (loginError) setLoginError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleLoginSubmit();
+                }}
+                placeholder="admin@example.com"
+                className="w-full mb-2 px-3 py-2 border-2 border-black rounded-lg text-sm outline-none"
+                autoFocus
+              />
+            )}
+
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => {
+                setPasswordInput(e.target.value);
+                if (loginError) setLoginError("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleLoginSubmit();
+              }}
+              placeholder="Enter admin password..."
+              className="w-full mb-2 px-3 py-2 border-2 border-black rounded-lg text-sm outline-none"
+              autoFocus={!SUPABASE_CONFIGURED}
+            />
+
+            {loginError && (
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#c62864] mb-3">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {loginError}
+              </div>
+            )}
+
+            <button
+              onClick={handleLoginSubmit}
+              disabled={loginSubmitting}
+              className={`w-full bg-black text-white font-bold py-2.5 rounded-lg border-2 border-black shadow-[3px_3px_0px_#e0648f] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none disabled:opacity-50 ${
+                loginError ? "mt-0" : "mt-1"
+              }`}
+            >
+              {loginSubmitting ? "확인 중..." : "Login"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal (admin only) */}
+      {deleteTargetId !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="bg-white border-2 border-black shadow-[6px_6px_0px_#000] rounded-2xl w-full max-w-xs p-5 relative">
+            <div className="flex justify-center mb-3">
+              <div
+                className="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_#000]"
+                style={{ backgroundColor: "#f7a8c4" }}
+              >
+                <Trash2 className="w-5 h-5 text-black" />
+              </div>
+            </div>
+            <h2 className="text-lg font-extrabold text-black mb-1 text-center">
+              이 프롬프트를 삭제할까요?
+            </h2>
+            <p className="text-xs text-gray-500 text-center mb-5">
+              삭제하면 되돌릴 수 없어요 ♡
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={cancelDeletePrompt}
+                className="flex-1 bg-white text-black font-bold py-2.5 rounded-lg border-2 border-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDeletePrompt}
+                className="flex-1 bg-black text-white font-bold py-2.5 rounded-lg border-2 border-black shadow-[3px_3px_0px_#e0648f] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full image preview lightbox */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[70]"
+          onClick={() => setPreviewImage(null)}
+        >
+          <button
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full border-2 border-black bg-white shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+          >
+            <X className="w-5 h-5 text-black" />
+          </button>
+          <img
+            src={previewImage}
+            alt="full preview"
+            className="max-w-full max-h-full rounded-xl border-2 border-black shadow-[6px_6px_0px_#000]"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {toastMessage && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60]">
+          <div
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full border-2 border-black shadow-[3px_3px_0px_#000] font-bold text-sm text-black"
+            style={{ backgroundColor: "#f7a8c4" }}
+          >
+            {toastMessage}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(
+  <ErrorBoundary>
+    <PromptSave />
+  </ErrorBoundary>
+);
+</script>
+
+<script>
+  // Watchdog: only writes to the separate #fallback element, and only if
+  // React never signaled a successful mount. It never touches #root, so it
+  // can't ever clash with React's own DOM updates (which was the cause of
+  // the earlier "insertBefore" crash).
+  window.addEventListener("error", function (e) {
+    console.error("Global error:", e.message, e.filename, e.lineno);
+  });
+  setTimeout(function () {
+    if (!window.__appMounted) {
+      var fallbackEl = document.getElementById("fallback");
+      if (fallbackEl) {
+        fallbackEl.style.display = "block";
+        fallbackEl.innerHTML =
+          '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;">' +
+          '<div style="max-width:420px;background:#fff;border:2px solid #000;border-radius:16px;box-shadow:6px 6px 0px #000;padding:24px;text-align:center;">' +
+          '<p style="font-size:28px;margin:0 0 8px;">⚠️</p>' +
+          '<h2 style="margin:0 0 8px;color:#000;">페이지를 불러오지 못했어요</h2>' +
+          '<p style="font-size:13px;color:#666;margin:0 0 12px;">React, Babel, 또는 Tailwind CDN 스크립트 중 하나가 로드되지 못한 것 같아요. ' +
+          '인터넷 연결, 광고 차단 확장 프로그램, 또는 회사/학교 네트워크의 외부 스크립트 차단 설정을 확인한 뒤 새로고침 해보세요.</p>' +
+          '</div></div>';
+      }
+    }
+  }, 8000);
+</script>
+
+</body>
+</html>
