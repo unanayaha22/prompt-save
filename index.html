@@ -183,22 +183,29 @@ const ADMIN_PASSWORD = "narunari@4957!";
    Until both are filled in, the app automatically falls back to
    saving in this browser's localStorage only (old behavior).
 --------------------------------------------------------------- */
-const SUPABASE_URL = "https://cnxskhplcseksjnxrnec.supabase.co";
+const SUPABASE_URL = "https://mgozohogxvhxrcfqycrl.supabase.co";
 const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNueHNraHBsY3Nla3NqbnhybmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3MDM0NTQsImV4cCI6MjEwMTI3OTQ1NH0.JF30_MQb7-mOMJQt9hj2qNpwuHTmTFtPjNqZQyo1UXI";
+  "sb_publishable_wYoAcaN2QIAmeXHpm9UO9g_Y64MCwMO";
 const SUPABASE_CONFIGURED =
   !SUPABASE_URL.includes("YOUR_SUPABASE_URL") &&
   !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY");
 
+// 예전 anon 키(eyJ...)는 JWT라서 Authorization에도 넣지만,
+// 새 publishable 키(sb_publishable_...)는 JWT가 아니라서 apikey 헤더에만 넣어야 함
+const isJwtKey = (v) => typeof v === "string" && v.startsWith("eyJ");
+
 const supabaseHeaders = {
   apikey: SUPABASE_ANON_KEY,
-  Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+  ...(isJwtKey(SUPABASE_ANON_KEY)
+    ? { Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    : {}),
 };
 
 function supabaseAuthedHeaders(token) {
+  const bearer = token || (isJwtKey(SUPABASE_ANON_KEY) ? SUPABASE_ANON_KEY : "");
   return {
     apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${token || SUPABASE_ANON_KEY}`,
+    ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
   };
 }
 
