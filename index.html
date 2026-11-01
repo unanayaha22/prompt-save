@@ -494,6 +494,15 @@ function PromptSave() {
     reader.readAsDataURL(file);
   };
 
+  const handleRemoveImage = () => {
+    // 저장 시 비어 있으면 기본 이미지로 바뀌고, 기존 스토리지 사진은 함께 삭제됨
+    setNewImage("");
+    setNewImageFile(null);
+    setNewImageName("");
+    setImageUrlInput("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleApplyImageUrl = () => {
     const url = imageUrlInput.trim();
     if (!url) return;
@@ -1123,6 +1132,17 @@ function PromptSave() {
                 {newImageName ? newImageName : "Choose File"}
               </span>
             </button>
+
+            {newImage && newImage !== DEFAULT_IMAGE && (
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="w-full mb-3 flex items-center justify-center gap-1.5 px-3 py-2 border-2 border-black rounded-lg bg-white text-sm font-bold text-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+                이미지 삭제 (기본 이미지로)
+              </button>
+            )}
 
             <label className="block text-xs font-bold text-black mb-1">
               Image Link
